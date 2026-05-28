@@ -1,0 +1,5 @@
+* @ssis-edu/dls @ssis-edu/it
+.github/ @ssis-edu/it
+.github/workflows/ @ssis-edu/it
+Dockerfile @ssis-edu/it
+nginx.conf @ssis-edu/it

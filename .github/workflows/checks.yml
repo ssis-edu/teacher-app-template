@@ -1,0 +1,41 @@
+name: Checks
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check required files
+        run: |
+          test -f index.html
+          test -f Dockerfile
+          test -f nginx.conf
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build container image
+        run: docker build -t ssis-teacher-app-check:${{ github.sha }} .
+
+  wif-dry-run:
+    name: wif-dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm deploy workflow is wired to shared workflow
+        run: |
+          test -f .github/workflows/deploy.yml
+          grep -q "ssis-edu/actions-shared/.github/workflows/deploy-cloud-run.yml@main" .github/workflows/deploy.yml

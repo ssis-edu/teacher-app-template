@@ -1,0 +1,15 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    uses: ssis-edu/actions-shared/.github/workflows/deploy-cloud-run.yml@main
+    with:
+      service-name: ${{ vars.CLOUD_RUN_SERVICE_NAME }}
