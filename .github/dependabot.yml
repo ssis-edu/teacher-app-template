@@ -1,10 +1,44 @@
 version: 2
+# Auto-update minor/patch only (grouped, monthly); MAJOR-version bumps are NEVER
+# auto-proposed — they stay as visible alerts to handle deliberately at the desk.
+# Security fixes still flow automatically and respect this ignore. Covers app
+# dependencies (npm), CI actions (github-actions), and the container base image
+# (docker). Inherited by every app generated from this template. Nothing ever
+# auto-merges, and the PR build check (checks.yml) must pass before any merge.
 updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    groups:
+      minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    groups:
+      minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
