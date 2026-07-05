@@ -35,6 +35,9 @@ jobs:
     name: wif-dry-run
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Confirm deploy workflow is wired to shared workflow
         run: |
           test -f .github/workflows/deploy.yml

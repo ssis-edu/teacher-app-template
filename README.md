@@ -4,7 +4,7 @@ Starter repository for a reviewed teacher web app deployed through the `ssis-edu
 
 ## How this works
 
-1. DLS or IT creates a new repository from this template.
+1. DLS/IT creates a new repository from this template.
 2. The teacher gets Write access to that repository only.
 3. Changes go through pull requests.
 4. CODEOWNERS routes review to DLS and IT.
