@@ -10,6 +10,28 @@ permissions:
 
 jobs:
   deploy:
+    # THE TEMPLATE ITSELF IS NOT AN APP. It has no Cloud Run service, and
+    # CLOUD_RUN_SERVICE_NAME is deliberately unset here — there is nothing to
+    # deploy and there never will be.
+    #
+    # Without this guard the shared workflow interpolates an EMPTY service name
+    # into the image tag:
+    #
+    #   asia-southeast1-docker.pkg.dev/ssis-apps/cloud-run-apps/:<sha>
+    #                                                           ^ nothing here
+    #
+    # and Docker rejects it — "invalid reference format", exit 1. So EVERY push
+    # to this repo's main has failed since the template was created (verified:
+    # 2026-07-05 and 2026-07-14 both red, for this exact reason). A permanently
+    # red template is worse than noise — it trains everyone who forks it to
+    # ignore a failing Deploy.
+    #
+    # The guard also fixes the FIRST-RUN experience of every app created FROM
+    # this template: until whoever sets it up adds the repo variable, the deploy
+    # SKIPS cleanly instead of handing them a red X they have to decode. Set
+    # CLOUD_RUN_SERVICE_NAME (Settings → Secrets and variables → Actions →
+    # Variables) and it starts deploying, with no workflow edit needed.
+    if: ${{ vars.CLOUD_RUN_SERVICE_NAME != '' }}
     uses: ssis-edu/actions-shared/.github/workflows/deploy-cloud-run.yml@main
     with:
       service-name: ${{ vars.CLOUD_RUN_SERVICE_NAME }}
