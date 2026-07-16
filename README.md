@@ -42,6 +42,33 @@ can pin people to an old version of your app. Don't ship one by accident.
 manifest, the icons, and the service worker on purpose — with someone who knows
 what a stale service worker does to a school on a Monday morning.
 
+## If your app uses the Google Picker: request `drive.readonly`, not `drive.file`
+
+**A Google Picker MUST be given a `drive.readonly` OAuth token. `drive.file`
+alone will look like it works for you and fail for everyone else.**
+
+This is a rule, not a preference, and it exists because the opposite happened.
+The Picker is an iframe from `docs.google.com` that has to LIST the user's Drive
+to show them files. It can do that via the OAuth **token** you pass to
+`setOAuthToken()`, or via `docs.google.com`'s **third-party cookie**. Browsers
+now block third-party cookies by default (Chrome, Safari, Firefox), so a Picker
+holding only a `drive.file` token — which can't list the user's Drive — falls
+back to the cookie, gets nothing, and dies with a **401** that the Picker
+mislabels **"The API developer key is invalid."** The key is fine; the token
+couldn't browse.
+
+`drive.readonly` lets the Picker browse using the token itself, so it works with
+third-party cookies OFF and there is nothing for a teacher to change. Note that
+`drive.file` also *appears* to work for anyone whose browser still allows
+third-party cookies — which is exactly why this bug ships looking fine and then
+breaks on the first clean profile (proven on `hs-trip-form`, 2026-07-15; the
+working reference is `hs-trip-form` `src/auth.ts` and `ssis-tools`' Docs Tab
+Builder).
+
+`drive.readonly` is a broad "see all your Drive files" consent. If you need the
+consent narrower, don't use the Picker at all — take a pasted Google Sheets/Doc
+link instead (no iframe, no third-party cookie, only a read scope).
+
 ## Repository variable required
 
 Set this in **Settings > Secrets and variables > Actions > Variables**:
