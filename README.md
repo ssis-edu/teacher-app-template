@@ -77,6 +77,43 @@ Set this in **Settings > Secrets and variables > Actions > Variables**:
 
 Use the repository name unless IT gives you a shorter service name.
 
+## Testing your Firestore rules
+
+If your app uses Firestore, its security rules are the only thing actually
+stopping one signed-in user from reading or writing another's data. Unit tests
+on your app code do not test them — every rules bug this platform has had passed
+its unit tests. Test the rules directly, against Google's own evaluator, and
+always run the same cases against the rules you are replacing.
+
+`scripts/rules-harness.mjs` does this. It ships with a worked example under
+`examples/rules-test/` — a role-gated ruleset, its buggy predecessor, and a
+suite that proves the fix. CI runs it on every pull request.
+
+```
+node scripts/rules-harness.mjs examples/rules-test/suite.mjs
+```
+
+To test your own rules: copy `examples/rules-test/` to `scripts/rules-tests/`,
+point `suite.mjs` at your `firestore.rules` (and the version it replaces), and
+write cases for your model. CI picks up `scripts/rules-tests/suite.mjs`
+automatically. The one rule to keep: include at least one case where the
+decision differs between the old rules and the new — that flip is the only thing
+that proves your change did what you meant and nothing else. The harness fails
+if you supply an old ruleset but no case distinguishes it.
+
+The harness needs a Google token. CI mints one keylessly via WIF; locally it
+falls back to your `gcloud` login. It reads nothing and writes nothing — the
+`:test` API evaluates supplied rules against a supplied request — so the CI
+identity needs only `roles/firebaserules.viewer` on the rules project.
+
+## Repository variable required
+
+Set this in **Settings > Secrets and variables > Actions > Variables**:
+
+- `CLOUD_RUN_SERVICE_NAME`: the Cloud Run service name for this app
+
+Use the repository name unless IT gives you a shorter service name.
+
 ## Data rule
 
 Do not commit student private information, exported gradebooks, API keys, service-account keys, or screenshots containing student records.
