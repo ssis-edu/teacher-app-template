@@ -77,7 +77,10 @@ jobs:
         with:
           token_format: access_token
           workload_identity_provider: "projects/351300458947/locations/global/workloadIdentityPools/github-ssis-edu/providers/github"
-          service_account: "gh-deploy-cloudrun@ssis-apps.iam.gserviceaccount.com"
+          # Dedicated read-only identity: holds firebaserules.viewer ONLY, so a
+          # compromised rules-test run cannot deploy or read data. Not the
+          # deploy SA — the deploy identity must not accrue unrelated powers.
+          service_account: "rules-test@ssis-apps.iam.gserviceaccount.com"
 
       - name: Run the rules harness
         if: steps.find.outputs.suite != ''
