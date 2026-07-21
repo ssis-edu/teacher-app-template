@@ -42,3 +42,48 @@ jobs:
         run: |
           test -f .github/workflows/deploy.yml
           grep -q "ssis-edu/actions-shared/.github/workflows/deploy-cloud-run.yml@main" .github/workflows/deploy.yml
+
+  rules-harness:
+    name: rules-harness
+    runs-on: ubuntu-latest
+    # This job needs a Google OAuth token, so it authenticates via the same
+    # keyless WIF path the deploy uses. id-token:write is scoped to THIS job.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # A forked app that has not yet written any rules suite has nothing to
+      # test — skip cleanly rather than fail. The template always ships the
+      # example, so on the template itself this always runs.
+      - name: Find a rules suite
+        id: find
+        run: |
+          if [ -f scripts/rules-tests/suite.mjs ]; then
+            echo "suite=scripts/rules-tests/suite.mjs" >> "$GITHUB_OUTPUT"
+          elif [ -f examples/rules-test/suite.mjs ]; then
+            echo "suite=examples/rules-test/suite.mjs" >> "$GITHUB_OUTPUT"
+          else
+            echo "suite=" >> "$GITHUB_OUTPUT"
+            echo "No rules suite found — nothing to test."
+          fi
+
+      - name: Authenticate to Google (WIF, keyless)
+        if: steps.find.outputs.suite != ''
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          token_format: access_token
+          workload_identity_provider: "projects/351300458947/locations/global/workloadIdentityPools/github-ssis-edu/providers/github"
+          # Dedicated read-only identity: holds firebaserules.viewer ONLY, so a
+          # compromised rules-test run cannot deploy or read data. Not the
+          # deploy SA — the deploy identity must not accrue unrelated powers.
+          service_account: "rules-test@ssis-apps.iam.gserviceaccount.com"
+
+      - name: Run the rules harness
+        if: steps.find.outputs.suite != ''
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: node scripts/rules-harness.mjs "${{ steps.find.outputs.suite }}"
