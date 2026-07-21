@@ -104,7 +104,11 @@ if you supply an old ruleset but no case distinguishes it.
 The harness needs a Google token. CI mints one keylessly via WIF; locally it
 falls back to your `gcloud` login. It reads nothing and writes nothing — the
 `:test` API evaluates supplied rules against a supplied request — so the CI
-identity needs only `roles/firebaserules.viewer` on the rules project.
+identity (`rules-test@ssis-apps`) holds a single permission,
+`firebaserules.rulesets.test`, via a custom role. Note that the predefined
+`roles/firebaserules.viewer` does NOT include that permission; only
+`firebaserules.admin` does among the built-ins, and that role can also deploy
+and delete rules — which is why this uses a one-permission custom role instead.
 
 ## Repository variable required
 
