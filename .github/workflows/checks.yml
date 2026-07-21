@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check required files
         run: |
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build container image
         run: docker build -t ssis-teacher-app-check:${{ github.sha }} .
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Confirm deploy workflow is wired to shared workflow
         run: |
@@ -53,7 +53,16 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      # This job RUNS node (the harness below), and until 2026-07-21 pinned no
+      # toolchain at all — it used whatever the runner image happened to ship,
+      # which changes without notice. Node 24 is the estate standard: Active
+      # LTS, and what every app Dockerfile already builds with.
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
 
       # A forked app that has not yet written any rules suite has nothing to
       # test — skip cleanly rather than fail. The template always ships the
