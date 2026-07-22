@@ -1,16 +1,36 @@
 rules_version = '2';
 
 // The BUGGY predecessor of firestore.rules, kept ONLY as the counterfactual
-// target for the harness. Do not deploy this.
+// target for the harness. Do not deploy this. Its body is preserved byte for
+// byte as the template actually shipped up to 2026-07-22 — that is what makes
+// it evidence rather than a mock-up.
 //
-// One line differs: `allow delete` is gated on isOwner() alone. This is the
-// real hs-trip-form bug (2026-07-16) reproduced — a creator could never delete
-// their own item, so on the trip form a student could never come off a trip.
-// It was invisible for two days because the only caller was also broken.
+// TWO things differ from the fixed file, and the suite attributes every flip to
+// exactly one of them:
 //
-// The harness runs the SAME cases against this file and the fixed one. The case
-// "creator deletes own item" expects DENY here and ALLOW there — that flip is
-// the proof the fix does what it claims, and touches nothing else.
+//   1. NO DOMAIN GATE. Everything gates on signedIn(), which only means "a
+//      verified Google token". ssis-apps has `blockingFunctions: {}`, so any
+//      @gmail.com could create, read, update and delete `items` here, and read
+//      a role doc. Cases labelled "non-SSIS" and "lookalike domain" flip
+//      ALLOW -> DENY on that clause alone.
+//      (One exception, deliberately kept in the suite: a non-SSIS DELETE is
+//      denied by BOTH files. The old file refuses it only via bug 2 below —
+//      two bugs cancelling is not a gate, and the moment someone fixed the
+//      delete they would have opened it.)
+//
+//   2. `allow delete` is gated on isOwner() alone. This is the real hs-trip-form
+//      bug (2026-07-16) reproduced — a creator could never delete their own
+//      item, so on the trip form a student could never come off a trip. It was
+//      invisible for two days because the only caller was also broken. The case
+//      "creator deletes own item" expects DENY here and ALLOW there.
+//
+// Bug 1 also has a quieter half: with no .lower() anywhere, a mixed-case staff
+// address such as `Alice@SSIS.edu.vn` is denied HER OWN item and HER OWN role
+// doc. The "mixed-case" cases flip DENY -> ALLOW, which is the hs-advisory-hub
+// bug caught in the template before anyone copied it.
+//
+// The harness runs the SAME cases against this file and the fixed one. Those
+// flips are the proof the fix does what it claims, and touches nothing else.
 
 service cloud.firestore {
   match /databases/{database}/documents {
