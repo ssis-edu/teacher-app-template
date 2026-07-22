@@ -7,24 +7,58 @@ rules_version = '2';
 // The model: an `items` collection owned by whoever created each doc. An
 // `owner` may do anything; the item's own creator (`createdBy`) may update and
 // delete their own item; nobody else may touch it. Roles come from a
-// roles/{email} doc.
+// roles/{email} doc. Audience: SSIS staff only.
+//
+// THE DOMAIN GATE IS NOT OPTIONAL — see isSsis() below. Until 2026-07-22 this
+// file gated on signedIn() alone, and its suite contained no non-SSIS identity,
+// so it stayed green while attacker@gmail.com could create, read, update and
+// delete `items` and read a role doc. That is the whole point of a template
+// defect: the file is copied, the suite is copied, and the hole is copied with
+// a passing CI badge over it.
 //
 // This is the CORRECT version. examples/rules-test/firestore.previous.rules is
-// the same rules with one deliberate bug — the delete gated on owner only, so
-// a creator could never delete their own item. The harness proves the fix.
+// the template as it shipped before that fix — it has BOTH the missing domain
+// gate and one deliberate bug, the delete gated on owner only, so a creator
+// could never delete their own item. The harness proves both fixes.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Signed in with a verified address. NOT a gate on its own — never write
+    // `allow ... if signedIn()`. Firebase Auth on ssis-apps has
+    // `blockingFunctions: {}`, i.e. no sign-up blocking function, so ANY Google
+    // account can obtain a verified token for these apps. signedIn() means
+    // "some human on the internet", not "someone at SSIS".
     function signedIn() {
       return request.auth != null
         && request.auth.token.email_verified == true;
     }
 
-    function role() {
+    // The domain gate every real app on the platform uses (ssis-calendar,
+    // ssis-names, hs-classlists, ssis-ideas, ssis-app-studio, hs-advisory-hub
+    // are all this exact shape). This is what you gate on.
+    //
+    // `.lower()` is load-bearing in BOTH directions. A Google token carries the
+    // address as registered, so a staff member may present `Alice@SSIS.edu.vn`:
+    // without .lower() she fails the suffix match and is locked out of her own
+    // app — that is the real hs-advisory-hub bug — and separately misses her own
+    // lowercased role doc. Lowercasing does not widen the gate; the pattern is
+    // anchored with `$`, so `attacker@ssis.edu.vn.evil.com` and
+    // `attacker@notssis.edu.vn` are still denied. The suite proves all four.
+    function isSsis() {
       return signedIn()
-        && exists(/databases/$(database)/documents/roles/$(request.auth.token.email))
-        ? get(/databases/$(database)/documents/roles/$(request.auth.token.email)).data.role
+        && request.auth.token.email.lower().matches('.*@ssis[.]edu[.]vn$');
+    }
+
+    // Normalise ONCE, compare everywhere against this. Role doc ids and
+    // `createdBy` are written lowercased, so any comparison that reaches for
+    // `request.auth.token.email` raw is the same case bug in a new clause.
+    function myEmail() { return request.auth.token.email.lower(); }
+
+    function role() {
+      return isSsis()
+        && exists(/databases/$(database)/documents/roles/$(myEmail()))
+        ? get(/databases/$(database)/documents/roles/$(myEmail())).data.role
         : null;
     }
 
@@ -33,14 +67,18 @@ service cloud.firestore {
     }
 
     function isCreator() {
-      return signedIn()
-        && resource.data.createdBy == request.auth.token.email;
+      return isSsis()
+        && resource.data.createdBy.lower() == myEmail();
     }
 
     match /items/{item} {
       allow read: if isOwner() || isCreator();
-      allow create: if signedIn()
-        && request.resource.data.createdBy == request.auth.token.email;
+      allow create: if isSsis()
+        && request.resource.data.createdBy.lower() == myEmail();
+      // createdBy is immutable: compare the incoming to the stored value
+      // EXACTLY, not lowercased. Equality here is a "did not change" check, not
+      // an identity check, and loosening it would let a creator rewrite the
+      // field's casing on a doc someone else may be matching on.
       allow update: if isOwner()
         || (isCreator()
             && request.resource.data.createdBy == resource.data.createdBy);
@@ -49,7 +87,7 @@ service cloud.firestore {
     }
 
     match /roles/{email} {
-      allow read: if signedIn() && request.auth.token.email == email;
+      allow read: if isSsis() && myEmail() == email;
       allow write: if isOwner();
     }
   }
